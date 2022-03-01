@@ -1,4 +1,4 @@
-package exec
+package cmd
 
 // 主服务
 // 一个便捷的模块
@@ -6,38 +6,42 @@ package exec
 import (
 	"fmt"
 	"io"
+	"kube-debug/pkg/util/interrupt"
+	"kube-debug/pkg/util/term"
+
 	// "strings"
 
-	"github.com/spf13/cobra"
+	// "github.com/spf13/cobra"
 
+	// "k8s.io/client-go/kubernetes"
+	// "k8s.io/client-go/rest"
+
+	// restclient "k8s.io/client-go/rest"
+
+	// "k8s.io/cli-runtime/pkg/genericclioptions"
+	// "k8s.io/cli-runtime/pkg/resource"
 	dockerterm "github.com/docker/docker/pkg/term"
-
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/remotecommand"
-
-	restclient "k8s.io/client-go/rest"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-
 	"k8s.io/kubectl/pkg/scheme"
 
-	"demo1/pkg/util/interrupt"
-	"demo1/pkg/util/term"
+	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
-// StreamOptions 参数，具体到连接信息
+// StreamOptions
 type StreamOptions struct {
-	Namespace     string
-	PodName       string
-	ContainerName string
-	Stdin         bool // 一定为true
-	TTY           bool //一定为true
-	// minimize unnecessary output
-	Quiet bool
+	// Namespace     string
+	// PodName       string
+	// ContainerName string
+	Stdin bool // 一定为true
+	TTY   bool //一定为true
+	// // minimize unnecessary output
+	// Quiet bool
 	// InterruptParent, if set, is used to handle interrupts while attached
 	InterruptParent *interrupt.Handler
 
@@ -48,22 +52,19 @@ type StreamOptions struct {
 	isTerminalIn    func(t term.TTY) bool
 }
 
-
 // DebugOptions 参数
 type DebugOptions struct {
-
 	StreamOptions
 
+	args []string
 
-	args           []string
+	Config *rest.Config
 
-	Config          *rest.Config
-
-	configFlags    	*genericclioptions.ConfigFlags
+	configFlags *genericclioptions.ConfigFlags
 	Builder     *resource.Builder
 
-	clientset   	*kubernetes.Clientset
-	restset   		*restclient.RESTClient
+	clientset *kubernetes.Clientset
+	// restset   *restclient.RESTClient
 }
 
 var (
@@ -73,7 +74,6 @@ var (
 	`
 	errNoContext = fmt.Errorf("no context is currently set, use %q to select a new one", "kubectl config use-context <context>")
 )
-
 
 // NewDebugOptions provides an instance of DebugOptions with default values
 func NewDebugOptions(streams genericclioptions.IOStreams) *DebugOptions {
@@ -86,16 +86,16 @@ func NewDebugOptions(streams genericclioptions.IOStreams) *DebugOptions {
 	}
 }
 
-
+// 我这里创建一个debug的命令
 // NewDebugCmd returns a cobra
 func NewDebugCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDebugOptions(streams)
 
 	cmd := &cobra.Command{
 		// Use:                   "debug POD [-c CONTAINER] -- COMMAND [args...]",
-		Use:                   "demo POD [-c CONTAINER] -- COMMAND [args...]",
+		Use: "demo POD [-c CONTAINER] -- COMMAND [args...]",
 		// DisableFlagsInUseLine: true,
-		Short:                 "Run a container in a running pod",
+		Short: "Run a container in a running pod",
 		// Long:                  longDesc,
 		// Example:               example,
 		// Version:               version.Version(),
@@ -104,9 +104,10 @@ func NewDebugCmd(streams genericclioptions.IOStreams) *cobra.Command {
 			if err := o.Complete(c, args); err != nil {
 				return err
 			}
-			if err := o.Validate(); err != nil {
-				return err
-			}
+			// if err := o.Validate(); err != nil {
+			// 	return err
+			// }
+			// 前面的验证都不改， 直接看看能不能启动起一个pod
 			if err := o.Run(); err != nil {
 				return err
 			}
@@ -115,8 +116,8 @@ func NewDebugCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	// cmd.Flags().BoolVar(&o.listNamespaces, "list", o.listNamespaces, "if true, print the list of all namespaces in the current KUBECONFIG")
-	cmd.Flags().StringVarP(&o.ContainerName, "container", "c", "",
-	"Target container to debug, default to the first container in pod")
+	// cmd.Flags().StringVarP(&o.ContainerName, "container", "c", "",
+	// 	"Target container to debug, default to the first container in pod")
 
 	o.configFlags.AddFlags(cmd.Flags())
 
@@ -129,17 +130,17 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 	fmt.Println(args)
 
-	var err error
+	// var err error
 
-	configLoader := o.configFlags.ToRawKubeConfigLoader()
-	o.Namespace, _, err = configLoader.Namespace()
-	o.PodName = args[0]
+	// configLoader := o.configFlags.ToRawKubeConfigLoader()
+	// o.Namespace, _, err = configLoader.Namespace()
+	// o.PodName = args[0]
 
-	o.Builder = resource.NewBuilder(o.configFlags)
+	// 	o.Builder = resource.NewBuilder(o.configFlags)
 
-	if err != nil {
-		return err
-	}
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
 	config, err := o.configFlags.ToRESTConfig()
 	if err != nil {
@@ -148,7 +149,6 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, args []string) error {
 	o.Config = config
 	o.clientset, err = kubernetes.NewForConfig(config)
 
-
 	if err != nil {
 		return err
 	}
@@ -156,19 +156,20 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Validate ensures that all required arguments and flag values are provided
-func (o *DebugOptions) Validate() error {
+// // Validate ensures that all required arguments and flag values are provided
+// func (o *DebugOptions) Validate() error {
 
-	if len(o.PodName) == 0 {
-		return fmt.Errorf("pod name required")
-	}
-	return nil
-}
+// 	if len(o.PodName) == 0 {
+// 		return fmt.Errorf("pod name required")
+// 	}
+// 	return nil
+// }
 
 // SetupTTY xx
 func (o *DebugOptions) SetupTTY() term.TTY {
 
 	t := term.TTY{
+		Parent: o.InterruptParent,
 		Out:    o.Out,
 	}
 
@@ -177,27 +178,13 @@ func (o *DebugOptions) SetupTTY() term.TTY {
 	// can safely set t.Raw to true
 	t.Raw = true
 
-	if o.isTerminalIn == nil {
-		o.isTerminalIn = func(tty term.TTY) bool {
-			return tty.IsTerminalIn()
-		}
-	}
-
-	if !o.isTerminalIn(t) {
-		o.TTY = false
-
+	if !t.IsTerminalIn() {
 		if o.ErrOut != nil {
 			fmt.Fprintln(o.ErrOut, "Unable to use a TTY - input is not a terminal or the right kind of file")
 		}
-
 		return t
 	}
-
-	if o.overrideStreams == nil {
-		// use dockerterm.StdStreams() to get the right I/O handles on Windows
-		o.overrideStreams = dockerterm.StdStreams
-	}
-	stdin, stdout, _ := o.overrideStreams()
+	stdin, stdout, _ := dockerterm.StdStreams()
 	o.In = stdin
 	t.In = stdin
 	if o.Out != nil {
@@ -211,33 +198,55 @@ func (o *DebugOptions) SetupTTY() term.TTY {
 // Run lists all available debugs on a user's KUBECONFIG or updates the
 // current context based on a provided debug.
 func (o *DebugOptions) Run() error {
-	pod, err := o.clientset.CoreV1().Pods(o.Namespace).Get(o.PodName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
+	var err error
+	// pod, err := o.clientset.CoreV1().Pods(o.Namespace).Get(o.PodName, metav1.GetOptions{})
+	// if err != nil {
+	// 	return err
+	// }
 
-	containerName := pod.Spec.Containers[0].Name
+	// containerName := pod.Spec.Containers[0].Name
 
 	t := o.SetupTTY()
-
 	var sizeQueue remotecommand.TerminalSizeQueue
-
-
 
 	if t.Raw {
 		// this call spawns a goroutine to monitor/update the terminal size
 		sizeQueue = t.MonitorSize(t.GetSize())
 
-		// unset p.Err if it was previously set because both stdout and stderr go over p.Out when tty is
-		// true
+		// 	// unset p.Err if it was previously set because both stdout and stderr go over p.Out when tty is
+		// 	// true
 		o.ErrOut = nil
+
+	}
+
+	containerName := "testDebug"
+
+	// sidecarPod := &corev1.Pod{
+	// 	TypeMeta: metav1.TypeMeta{
+	// 		Kind:       "Pod",
+	// 		APIVersion: "v1",
+	// 	},
+	// 	ObjectMeta: metav1.ObjectMeta{
+	// 		Name:      podName,
+	// 		Namespace: podNamespace,
+	// 	},
+	// 	Spec: corev1.PodSpec{
+	// 		Containers: []corev1.Container{
+	// 			{
+	// 				Name:  containerName,
+	// 				Image: "nicolaka/netshoot:latest",
+	// 			},
+	// 		},
+	// 	},
+	// }
+	pod := o.generateDebugNodePod("docker-desktop")
+	pod, err = o.launchPod(pod)
+
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	fn := func() error {
-		// fmt.Println(o.Stdin)
-		// fmt.Println(o.Out)
-		// fmt.Println(o.ErrOut)
-
 		req := o.clientset.CoreV1().RESTClient().Post().
 			Resource("pods").
 			Name(pod.Name).
@@ -252,21 +261,20 @@ func (o *DebugOptions) Run() error {
 			TTY:       true,
 		}, scheme.ParameterCodec)
 
-
-		fmt.Println(44444)
 		var executor remotecommand.Executor
-			// 创建到容器的连接
 
-		fmt.Println(req.URL())
+		// fmt.Println(req)
+		// 	// change to ws
 		if executor, err = remotecommand.NewSPDYExecutor(o.Config, "POST", req.URL()); err != nil {
+			fmt.Println(5675675)
 			fmt.Println(err)
 		}
 
-		fmt.Println(req.URL())
+		// 	// fmt.Println(req.URL())
 		if err = executor.Stream(remotecommand.StreamOptions{
-			Stdin:     o.In,
-			Stdout:    o.Out,
-			Stderr:    o.ErrOut,
+			Stdin:             o.In,
+			Stdout:            o.Out,
+			Stderr:            o.ErrOut,
 			TerminalSizeQueue: sizeQueue,
 			Tty:               true,
 		}); err != nil {
@@ -277,8 +285,8 @@ func (o *DebugOptions) Run() error {
 
 	if err := t.Safe(fn); err != nil {
 		fmt.Println(5675675)
-		fmt.Println(err)
-		return err
+		// 	fmt.Println(err)
+		// 	return err
 	}
 
 	return nil

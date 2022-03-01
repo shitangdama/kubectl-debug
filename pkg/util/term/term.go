@@ -19,7 +19,7 @@ import (
 
 	"github.com/docker/docker/pkg/term"
 
-	"demo1/pkg/util/interrupt"
+	"kube-debug/pkg/util/interrupt"
 )
 
 // SafeFunc is a function to be invoked by TTY.
