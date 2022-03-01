@@ -9,17 +9,6 @@ import (
 	"kube-debug/pkg/util/interrupt"
 	"kube-debug/pkg/util/term"
 
-	// "strings"
-
-	// "github.com/spf13/cobra"
-
-	// "k8s.io/client-go/kubernetes"
-	// "k8s.io/client-go/rest"
-
-	// restclient "k8s.io/client-go/rest"
-
-	// "k8s.io/cli-runtime/pkg/genericclioptions"
-	// "k8s.io/cli-runtime/pkg/resource"
 	dockerterm "github.com/docker/docker/pkg/term"
 	"k8s.io/kubectl/pkg/scheme"
 
@@ -219,30 +208,12 @@ func (o *DebugOptions) Run() error {
 
 	}
 
-	containerName := "testDebug"
-
-	// sidecarPod := &corev1.Pod{
-	// 	TypeMeta: metav1.TypeMeta{
-	// 		Kind:       "Pod",
-	// 		APIVersion: "v1",
-	// 	},
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name:      podName,
-	// 		Namespace: podNamespace,
-	// 	},
-	// 	Spec: corev1.PodSpec{
-	// 		Containers: []corev1.Container{
-	// 			{
-	// 				Name:  containerName,
-	// 				Image: "nicolaka/netshoot:latest",
-	// 			},
-	// 		},
-	// 	},
-	// }
 	pod := o.generateDebugNodePod("docker-desktop")
 	pod, err = o.launchPod(pod)
+	containerName := "test-debug"
 
 	if err != nil {
+		fmt.Println(2222)
 		fmt.Println(err)
 	}
 

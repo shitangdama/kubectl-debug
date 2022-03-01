@@ -14,12 +14,13 @@ import (
 func (o *DebugOptions) generateDebugNodePod(nodeName string) *corev1.Pod {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "nodeDebug",
+			Name:      "node-debug",
+			Namespace: "default",
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name: "testDebug",
+					Name: "test-debug",
 					// Env:   debugger.Env,
 					Image: "nicolaka/netshoot:latest",
 					// ImagePullPolicy:          core,
